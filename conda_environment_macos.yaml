@@ -40,16 +40,16 @@ dependencies:
   - accelerate=0.13.2
   - datasets=2.6.1
   - diffusers=0.11.1
+  # diffusers<=0.11 uses huggingface_hub.cached_download, which was removed in newer hub releases.
+  - huggingface_hub<0.20
   - av=10.0.0
   - cmake=3.24.3
-  # trick to force reinstall imagecodecs via pip
-  - imagecodecs==2022.8.8
+  # Prefer conda-forge binary to avoid compiling (and missing system headers like libheif).
+  - imagecodecs=2022.9.26
   - pip:
     - ray[default,tune]==2.2.0
     - pygame==2.1.2
     - robomimic==0.2.0
     - pytorchvideo==0.1.5
     - atomics==1.0.2
-    # No support for jpeg-xl for MacOS
-    - imagecodecs==2022.9.26
     - r3m @ https://github.com/facebookresearch/r3m/archive/b2334e726887fa0206962d7984c69c5fb09cceab.tar.gz
