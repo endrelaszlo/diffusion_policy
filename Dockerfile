@@ -49,6 +49,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Runtime deps only (no compilers / headers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    openssh-server openssh-client \
+    sudo \
     libosmesa6 libgl1-mesa-glx libglfw3 patchelf \
     && rm -rf /var/lib/apt/lists/*
 
@@ -58,8 +60,38 @@ COPY --from=builder /opt/micromamba /opt/micromamba
 WORKDIR /workspace
 COPY --from=builder /workspace /workspace
 
+# Make interactive shells auto-activate the robodiff env
+RUN printf '%s\n' \
+    'eval "$(micromamba shell hook --shell bash)"' \
+    'micromamba activate robodiff' \
+    > /etc/profile.d/robodiff.sh && \
+    chmod 0644 /etc/profile.d/robodiff.sh && \
+    echo 'source /etc/profile.d/robodiff.sh' >> /etc/bash.bashrc
+
+# SSH setup
+# - Key auth only by default (RunPod provides SSH keys on the Pod; we can also accept keys via env vars)
+# - Create a non-root user for SSH (recommended); root login still supported via key if desired
+RUN mkdir -p /var/run/sshd && \
+    useradd -m -s /bin/bash runpod && \
+    mkdir -p /home/runpod/.ssh /root/.ssh && \
+    chmod 700 /home/runpod/.ssh /root/.ssh && \
+    chown -R runpod:runpod /home/runpod/.ssh && \
+    echo "runpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/010-runpod-nopasswd && \
+    chmod 0440 /etc/sudoers.d/010-runpod-nopasswd && \
+    sed -i 's@^#\?PasswordAuthentication .*@PasswordAuthentication no@g' /etc/ssh/sshd_config && \
+    sed -i 's@^#\?KbdInteractiveAuthentication .*@KbdInteractiveAuthentication no@g' /etc/ssh/sshd_config && \
+    sed -i 's@^#\?PubkeyAuthentication .*@PubkeyAuthentication yes@g' /etc/ssh/sshd_config && \
+    sed -i 's@^#\?PermitRootLogin .*@PermitRootLogin prohibit-password@g' /etc/ssh/sshd_config && \
+    printf "\nAllowUsers runpod root\nClientAliveInterval 60\nClientAliveCountMax 10\n" >> /etc/ssh/sshd_config
+
+EXPOSE 22
+
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 # Default shell context inside env
 SHELL ["micromamba", "run", "-n", "robodiff", "/bin/bash", "-lc"]
 
-# A safe default command (override in `docker run ...`)
-CMD ["python", "-c", "import diffusion_policy; print('diffusion_policy import OK')"]
+# Default command keeps container alive for SSH (RunPod can override this)
+CMD ["bash", "-lc", "sleep infinity"]
