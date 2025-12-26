@@ -48,7 +48,7 @@ dependencies:
   - imagecodecs=2022.9.26
   - pip:
     - ray[default,tune]==2.2.0
-    - pygame==2.1.2
+    - pygame==2.5.2
     - robomimic==0.2.0
     - pytorchvideo==0.1.5
     - atomics==1.0.2

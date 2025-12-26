@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Be explicit about the micromamba root prefix.
+# Some container platforms / shells may start without inheriting ENV reliably,
+# and micromamba will then fall back to ~/.local/share/mamba (which won't
+# contain the prebuilt env from the Dockerfile).
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-/opt/micromamba}"
+export PATH="${MAMBA_ROOT_PREFIX}/bin:${PATH}"
+
 log() {
   echo "[entrypoint] $*" >&2
 }

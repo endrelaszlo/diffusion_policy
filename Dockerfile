@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssh-server openssh-client \
     sudo \
     zsh tmux \
+    nvtop \
     less vim-tiny \
     unzip \
     libosmesa6 libgl1-mesa-glx libglfw3 patchelf \
@@ -61,6 +62,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /usr/local/bin/micromamba /usr/local/bin/micromamba
 COPY --from=builder /opt/micromamba /opt/micromamba
+
+# Compatibility: if micromamba starts without MAMBA_ROOT_PREFIX, it defaults to
+# /root/.local/share/mamba. Point that location at our baked prefix so
+# `micromamba activate robodiff` works reliably.
+RUN mkdir -p /root/.local/share && \
+    rm -rf /root/.local/share/mamba && \
+    ln -s /opt/micromamba /root/.local/share/mamba
 
 WORKDIR /workspace
 COPY --from=builder /workspace /workspace
