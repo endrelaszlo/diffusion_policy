@@ -49,8 +49,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # Runtime deps only (no compilers / headers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl wget \
+    git \
     openssh-server openssh-client \
     sudo \
+    zsh tmux \
+    less vim-tiny \
+    unzip \
     libosmesa6 libgl1-mesa-glx libglfw3 patchelf \
     && rm -rf /var/lib/apt/lists/*
 

@@ -83,6 +83,40 @@ $ conda env create -f conda_environment.yaml
 
 The `conda_environment_macos.yaml` file is only for development on MacOS and does not have full support for benchmarks.
 
+### 🔐 SSH (host setup for private-key login to Docker/RunPod)
+This repo’s `Dockerfile` + `docker/entrypoint.sh` can run an SSH server inside the container (port `22`) with **key-only auth**. To connect from your machine using a **private key**, do:
+
+1) Generate a keypair on your host (if you don’t already have one for this):
+
+```console
+$ ssh-keygen -t ed25519 -f ~/.ssh/diffusion_policy_runpod -C "diffusion-policy"
+```
+
+2) Start the container with your **public key** injected (so you can log in):
+
+```console
+$ docker run --rm -p 2222:22 \
+  -e PUBLIC_KEY="$(cat ~/.ssh/diffusion_policy_runpod.pub)" \
+  <your_image>
+```
+
+3) Add a convenient SSH `Host` alias on your host machine (writes/updates `~/.ssh/config`):
+
+```console
+$ bash scripts/setup_ssh_host.sh \
+  --name diffusion-policy \
+  --host 127.0.0.1 \
+  --user runpod \
+  --port 2222 \
+  --identity-file ~/.ssh/diffusion_policy_runpod
+```
+
+4) Connect:
+
+```console
+$ ssh diffusion-policy
+```
+
 ### 🦾 Real Robot
 Hardware (for Push-T):
 * 1x [UR5-CB3](https://www.universal-robots.com/cb3) or [UR5e](https://www.universal-robots.com/products/ur5-robot/) ([RTDE Interface](https://www.universal-robots.com/articles/ur/interface-communication/real-time-data-exchange-rtde-guide/) is required)
