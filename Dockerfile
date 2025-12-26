@@ -1,12 +1,15 @@
 # CUDA runtime base (GPU libraries in-container; driver stays on the host)
-FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04
+# Multi-stage build keeps build tooling out of the final image.
+FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Etc/UTC \
     MAMBA_ROOT_PREFIX=/opt/micromamba \
-    PATH=/opt/micromamba/bin:$PATH
+    PATH=/opt/micromamba/bin:$PATH \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# System deps (incl. MuJoCo deps noted in the repo README for Ubuntu 20.04)
+# Build deps (headers/compilers needed for some pip wheels)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl git \
     libosmesa6-dev libgl1-mesa-glx libglfw3 patchelf \
@@ -22,11 +25,38 @@ WORKDIR /workspace
 # Copy environment definition and create env
 COPY conda_environment.yaml /tmp/conda_environment.yaml
 RUN micromamba create -y -n robodiff -f /tmp/conda_environment.yaml && \
-    micromamba clean -a -y
+    rm -rf /root/.cache/pip /tmp/pip-* /tmp/pip-build-* || true && \
+    micromamba clean -a -y && \
+    find /opt/micromamba -type f -name '*.a' -delete || true && \
+    find /opt/micromamba -type f -name '*.pyc' -delete || true && \
+    find /opt/micromamba -type d -name '__pycache__' -prune -exec rm -rf {} + || true
 
 # Copy project and install
 COPY . /workspace
-RUN micromamba run -n robodiff python -m pip install --no-cache-dir -e .
+RUN micromamba run -n robodiff python -m pip install --no-cache-dir -e . && \
+    rm -rf /root/.cache/pip /tmp/pip-* /tmp/pip-build-* || true
+
+
+FROM nvidia/cuda:11.6.2-cudnn8-runtime-ubuntu20.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC \
+    MAMBA_ROOT_PREFIX=/opt/micromamba \
+    PATH=/opt/micromamba/bin:$PATH \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Runtime deps only (no compilers / headers)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libosmesa6 libgl1-mesa-glx libglfw3 patchelf \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/bin/micromamba /usr/local/bin/micromamba
+COPY --from=builder /opt/micromamba /opt/micromamba
+
+WORKDIR /workspace
+COPY --from=builder /workspace /workspace
 
 # Default shell context inside env
 SHELL ["micromamba", "run", "-n", "robodiff", "/bin/bash", "-lc"]
