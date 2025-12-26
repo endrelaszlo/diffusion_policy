@@ -83,19 +83,19 @@ RUN printf '%s\n' \
 
 # SSH setup
 # - Key auth only by default (RunPod provides SSH keys on the Pod; we can also accept keys via env vars)
-# - Create a non-root user for SSH (recommended); root login still supported via key if desired
+# - Root-only by default (key auth); you can add a non-root user in derived images if desired
 RUN mkdir -p /var/run/sshd && \
-    useradd -m -s /bin/bash runpod && \
-    mkdir -p /home/runpod/.ssh /root/.ssh && \
-    chmod 700 /home/runpod/.ssh /root/.ssh && \
-    chown -R runpod:runpod /home/runpod/.ssh && \
-    echo "runpod ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/010-runpod-nopasswd && \
-    chmod 0440 /etc/sudoers.d/010-runpod-nopasswd && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
     sed -i 's@^#\?PasswordAuthentication .*@PasswordAuthentication no@g' /etc/ssh/sshd_config && \
     sed -i 's@^#\?KbdInteractiveAuthentication .*@KbdInteractiveAuthentication no@g' /etc/ssh/sshd_config && \
     sed -i 's@^#\?PubkeyAuthentication .*@PubkeyAuthentication yes@g' /etc/ssh/sshd_config && \
     sed -i 's@^#\?PermitRootLogin .*@PermitRootLogin prohibit-password@g' /etc/ssh/sshd_config && \
-    printf "\nAllowUsers runpod root\nClientAliveInterval 60\nClientAliveCountMax 10\n" >> /etc/ssh/sshd_config
+    sed -i 's@^#\?AllowAgentForwarding .*@AllowAgentForwarding yes@g' /etc/ssh/sshd_config && \
+    sed -i 's@^#\?AllowTcpForwarding .*@AllowTcpForwarding yes@g' /etc/ssh/sshd_config && \
+    printf "\nAllowUsers root\nClientAliveInterval 60\nClientAliveCountMax 10\n" >> /etc/ssh/sshd_config && \
+    printf '%s\n' 'Defaults env_keep += "SSH_AUTH_SOCK"' > /etc/sudoers.d/020-ssh-agent-forwarding && \
+    chmod 0440 /etc/sudoers.d/020-ssh-agent-forwarding
 
 EXPOSE 22
 

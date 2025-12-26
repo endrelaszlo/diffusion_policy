@@ -103,18 +103,29 @@ $ docker run --rm -p 2222:22 \
 3) Add a convenient SSH `Host` alias on your host machine (writes/updates `~/.ssh/config`):
 
 ```console
-$ bash scripts/setup_ssh_host.sh \
-  --name diffusion-policy \
-  --host 127.0.0.1 \
-  --user runpod \
-  --port 2222 \
-  --identity-file ~/.ssh/diffusion_policy_runpod
+$ cat >> ~/.ssh/config <<'EOF'
+Host diffusion-policy
+  HostName 127.0.0.1
+  User root
+  Port 2222
+  IdentityFile ~/.ssh/diffusion_policy_runpod
+  IdentitiesOnly yes
+  ForwardAgent yes
+EOF
 ```
 
 4) Connect:
 
 ```console
 $ ssh diffusion-policy
+```
+
+If you want to use your **host** SSH key via ssh-agent forwarding (recommended for GitHub pushes from inside the container), keep `ForwardAgent yes` (or use `ssh -A`).
+You can confirm it works inside the container with:
+
+```console
+[container]$ echo $SSH_AUTH_SOCK
+[container]$ ssh -T git@github.com
 ```
 
 ### 🦾 Real Robot

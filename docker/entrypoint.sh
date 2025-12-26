@@ -97,17 +97,13 @@ main() {
     ssh-keygen -A
   fi
 
-  # Ensure default user exists (created at build time, but safe to re-check)
-  ensure_user "runpod"
-
-  # Install keys for runpod and root (root login is key-only due to sshd_config)
-  install_key "runpod"
+  # Install keys for root (root login is key-only due to sshd_config)
   install_key "root"
 
   # Align with RunPod's official pattern: only start SSH if a public key exists
   # (their reference uses PUBLIC_KEY and then starts ssh) while still supporting
   # pre-mounted authorized_keys files. See: https://www.runpod.io/blog/diy-deep-learning-docker-container
-  if has_authorized_keys "runpod" || has_authorized_keys "root"; then
+  if has_authorized_keys "root"; then
     log "SSH key(s) detected; starting sshd."
     /usr/sbin/sshd -D -e &
   else
